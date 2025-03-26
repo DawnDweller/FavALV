@@ -5,25 +5,20 @@ CLASS lcl_main_controller DEFINITION CREATE PRIVATE FINAL.
   PUBLIC SECTION.
 
     CLASS-DATA:
-*      mt_main2           TYPE TABLE OF zco016_s_sabit_degisken2,
-*      mt_main            TYPE TABLE OF zco016_s_sabit_degisken2,
-*      mv_selected_row    TYPE sy-tabix,
       ms_formoutput      TYPE fpformoutput,
       mt_ebeln           TYPE mtt_ebeln,
       mt_werks           TYPE rsdsselopt_t,
       mt_ekgrp           TYPE rsdsselopt_t,
       mt_teklf_list      TYPE STANDARD TABLE OF zmm034_s_af_gond_alv,
-*      mt_row             TYPE salv_t_row,
       mt_instid_b        TYPE mtt_instid_b,
       mt_select_data     TYPE mtt_select_data,
       mt_popup_alv_malz  TYPE STANDARD TABLE OF zmm034_s_popup_alv,
       mt_popup_alv_banfn TYPE STANDARD TABLE OF zmm034_s_popup_alv,
       mt_popup_alv_ebeln TYPE STANDARD TABLE OF zmm034_s_popup_alv,
       mt_all_rows        TYPE mtt_all_row,
-*      mo_alv             TYPE REF TO cl_salv_table, ""
       mt_rows            TYPE TABLE OF ty_row,
-      mv_repid TYPE sy-repid,
-      gv_marker type char1,
+      mv_repid           TYPE sy-repid,
+      gv_marker          TYPE char1,
 
       BEGIN OF ms_alv,
         BEGIN OF s0100,
@@ -32,6 +27,15 @@ CLASS lcl_main_controller DEFINITION CREATE PRIVATE FINAL.
         BEGIN OF s0200,
           cont TYPE REF TO cl_gui_custom_container,
         END OF s0200,
+        BEGIN OF s0300,
+          cont TYPE REF TO cl_gui_custom_container,
+        END OF s0300,
+        BEGIN OF s0400,
+          cont TYPE REF TO cl_gui_custom_container,
+        END OF s0400,
+*        BEGIN OF s0203,
+*          cont TYPE REF TO cl_gui_custom_container,
+*        END OF s0203,
 
         BEGIN OF s0101,
           itab TYPE STANDARD TABLE OF zpp012_s_001,
@@ -41,6 +45,7 @@ CLASS lcl_main_controller DEFINITION CREATE PRIVATE FINAL.
           vari TYPE disvariant,
           sort TYPE lvc_t_sort,
         END OF s0101,
+
         BEGIN OF s0201,
           itab TYPE STANDARD TABLE OF zpp012_s_001,
           grid TYPE REF TO cl_gui_alv_grid,
@@ -49,6 +54,22 @@ CLASS lcl_main_controller DEFINITION CREATE PRIVATE FINAL.
           vari TYPE disvariant,
           sort TYPE lvc_t_sort,
         END OF s0201,
+        BEGIN OF s0301,
+          itab TYPE STANDARD TABLE OF zpp012_s_001,
+          grid TYPE REF TO cl_gui_alv_grid,
+          fcat TYPE lvc_t_fcat,
+          layo TYPE lvc_s_layo,
+          vari TYPE disvariant,
+          sort TYPE lvc_t_sort,
+        END OF s0301,
+        BEGIN OF s0401,
+          itab TYPE STANDARD TABLE OF zpp012_s_001,
+          grid TYPE REF TO cl_gui_alv_grid,
+          fcat TYPE lvc_t_fcat,
+          layo TYPE lvc_s_layo,
+          vari TYPE disvariant,
+          sort TYPE lvc_t_sort,
+        END OF s0401,
       END OF ms_alv.
 
     CLASS-METHODS:
@@ -89,11 +110,13 @@ CLASS lcl_main_controller DEFINITION CREATE PRIVATE FINAL.
       build_vari IMPORTING VALUE(iv_scrn) TYPE char4
                  RETURNING VALUE(rs_vari) TYPE disvariant,
       fill_main_sort IMPORTING VALUE(iv_scrn) TYPE char4
-                     RETURNING VALUE(rt_sort) TYPE lvc_t_sort.
+                     RETURNING VALUE(rt_sort) TYPE lvc_t_sort,
+      refresh_alv
+        IMPORTING io_grid TYPE REF TO cl_gui_alv_grid.
 
   PRIVATE SECTION.
 
-METHODS:
+    METHODS:
       constructor,
       set_repid IMPORTING iv_repid TYPE sy-repid.
 
@@ -101,15 +124,14 @@ ENDCLASS.
 
 
 CLASS lcl_main_controller IMPLEMENTATION.
- METHOD constructor.
+  METHOD constructor.
     mo_log = NEW #( ).
-*   CREATE OBJECT mo_log.
     set_repid( iv_repid = sy-repid ).
   ENDMETHOD.
-METHOD set_repid.
+  METHOD set_repid.
     mv_repid = sy-repid.
   ENDMETHOD.
-METHOD validate_ss. "method for authorization check...
+  METHOD validate_ss. "method for authorization check...
     DATA(lr_werks) = VALUE /accgo/cas_tt_plant( ).
     LOOP AT s_werks REFERENCE INTO DATA(lr_wr1).
       APPEND INITIAL LINE TO lr_werks REFERENCE INTO DATA(lr_wr2).
@@ -122,21 +144,18 @@ METHOD validate_ss. "method for authorization check...
         it_werks    = lr_werks
         iv_activity = '01'
       IMPORTING
-*        et_werks    = lt_werks
         et_return   = lt_return
     ).
 
     IF lt_return IS NOT INITIAL.
       mt_werks = VALUE #( FOR ls_return_ IN lt_return ( sign = 'I' option = 'EQ' low = ls_return_-message_v1 ) ).
       MESSAGE i006 INTO DATA(lv_msg).
-      RAISE EXCEPTION NEW lcx_exceptions( iv_message = | { lv_msg } |
-                                          iv_type    = lcx_exceptions=>mc_msgty_i
-                                          io_log     = mo_log ).
+*      RAISE EXCEPTION NEW lcx_exceptions( iv_message = | { lv_msg } |
+*                                          iv_type    = lcx_exceptions=>mc_msgty_i
+*                                          io_log     = mo_log ).
     ENDIF.
 
-" Authorization Check for EKGRP Field
-
-validate_ss( ).
+    " Authorization Check for EKGRP Field
 
     SELECT
       FROM
@@ -155,15 +174,15 @@ validate_ss( ).
         IF sy-subrc <> 0.
           APPEND VALUE #( sign = 'I' option = 'EQ' low = ls_ekgrp-ekgrp ) TO mt_ekgrp .
           MESSAGE i007 WITH ls_ekgrp-ekgrp INTO DATA(lv_msg1).
-          RAISE EXCEPTION NEW lcx_exceptions( iv_message = | { lv_msg1 } |
-                                              iv_type    = lcx_exceptions=>mc_msgty_i
-                                              io_log     = mo_log ).
+*          RAISE EXCEPTION NEW lcx_exceptions( iv_message = | { lv_msg1 } |
+*                                              iv_type    = lcx_exceptions=>mc_msgty_i
+*                                              io_log     = mo_log ).
 
         ENDIF.
       ENDLOOP.
     ENDIF.
   ENDMETHOD.
-METHOD display_attachment.
+  METHOD display_attachment.
     DATA: lv_attachment TYPE borident-objkey.
     IF is_data IS NOT INITIAL.
       lv_attachment = CONV #( is_data-doc_id ).
@@ -174,7 +193,7 @@ METHOD display_attachment.
     ENDIF.
   ENDMETHOD.
   METHOD get_data.
-
+*validate_ss( ).
     SELECT
       FROM ekko AS ek
       INNER JOIN ekpo AS ep ON ek~ebeln = ep~ebeln
@@ -231,8 +250,8 @@ METHOD display_attachment.
       INTO TABLE @mt_select_data.
 
     IF sy-subrc <> 0.
-      MESSAGE 'Veri bulunamadı.' TYPE 'E'.
-        MESSAGE i001 INTO DATA(lv_msg).
+      MESSAGE TEXT-016 TYPE 'E'. "'Veri bulunamadı.'
+      MESSAGE i001 INTO DATA(lv_msg).
       RAISE EXCEPTION NEW lcx_exceptions( iv_message = | { lv_msg } |
                                           iv_type    = lcx_exceptions=>mc_msgty_e
                                           io_log     = mo_log ).
@@ -274,20 +293,26 @@ METHOD display_attachment.
                             stnalm_gr        = <fs_list>-ekgrp
                             ihtyc_no         = <fs_list>-bednr
                             odeme_kosul      = <fs_list>-zterm  ).
+
+      APPEND VALUE #( ebeln = <fs_list>-ebeln
+                      ekgrp = <fs_list>-ekgrp
+                      lifnr = <fs_list>-lifnr
+                      adrnr = <fs_list>-adrnr
+                      lfa1_name1 = <fs_list>-lifnr_name1 ) TO mt_ebeln.
     ENDLOOP.
 
     SORT mt_teklf_list BY stnalm_blg_no satalm_blgklm_no.
-    IF mt_select_data[] IS NOT INITIAL.
-      LOOP AT mt_select_data ASSIGNING FIELD-SYMBOL(<fs_ebeln_lst>).
-        APPEND VALUE #( ebeln = <fs_ebeln_lst>-ebeln
-                        ekgrp = <fs_ebeln_lst>-ekgrp
-                        lifnr = <fs_ebeln_lst>-lifnr
-                        adrnr = <fs_ebeln_lst>-adrnr
-                        lfa1_name1 = <fs_ebeln_lst>-lifnr_name1 ) TO mt_ebeln.
-      ENDLOOP.
-      SORT mt_ebeln BY ebeln.
-      DELETE ADJACENT DUPLICATES FROM mt_ebeln COMPARING ebeln.
-    ENDIF.
+*    IF mt_select_data[] IS NOT INITIAL.
+*      LOOP AT mt_select_data ASSIGNING FIELD-SYMBOL(<fs_ebeln_lst>).
+*        APPEND VALUE #( ebeln = <fs_ebeln_lst>-ebeln
+*                        ekgrp = <fs_ebeln_lst>-ekgrp
+*                        lifnr = <fs_ebeln_lst>-lifnr
+*                        adrnr = <fs_ebeln_lst>-adrnr
+*                        lfa1_name1 = <fs_ebeln_lst>-lifnr_name1 ) TO mt_ebeln.
+*      ENDLOOP.
+    SORT mt_ebeln BY ebeln.
+    DELETE ADJACENT DUPLICATES FROM mt_ebeln COMPARING ebeln.
+*    ENDIF.
 
 
   ENDMETHOD.
@@ -297,12 +322,7 @@ METHOD display_attachment.
   METHOD end_of_selection.
     CALL SCREEN 0100.
   ENDMETHOD.
-
-
-
   METHOD main_alv.
-
-
     DATA lt_exclude TYPE ui_functions.
     FIELD-SYMBOLS : <lo_grid> TYPE REF TO cl_gui_alv_grid,
                     <lo_prnt> TYPE REF TO cl_gui_container,
@@ -316,91 +336,98 @@ METHOD display_attachment.
         CLEAR : <lo_grid>.
 
         "GRID INITIAL CONTROL if it is bound then flush( ).
-*        IF <lo_grid> IS NOT BOUND.
-        "GRID
-        DATA(lv_str_gui) = 'S' && iv_scrn_cont.
-        ASSIGN COMPONENT lv_str_gui OF STRUCTURE ms_alv TO FIELD-SYMBOL(<ls_gui>).
-        IF <ls_gui> IS ASSIGNED.
-          ASSIGN COMPONENT ms_alv_components-cont OF STRUCTURE <ls_gui> TO <lo_cont>.
-          IF <lo_cont> IS ASSIGNED.
-            <lo_grid> = build_grid( io_cont = <lo_cont> ).
+        IF <lo_grid> IS NOT BOUND.
+          "GRID
+          DATA(lv_str_gui) = 'S' && iv_scrn_cont.
+          ASSIGN COMPONENT lv_str_gui OF STRUCTURE ms_alv TO FIELD-SYMBOL(<ls_gui>).
+          IF <ls_gui> IS ASSIGNED.
+            ASSIGN COMPONENT ms_alv_components-cont OF STRUCTURE <ls_gui> TO <lo_cont>.
+            IF <lo_cont> IS ASSIGNED.
+              <lo_grid> = build_grid( io_cont = <lo_cont> ).
+            ENDIF.
           ENDIF.
-        ENDIF.
 
-
-        "FCAT
-        ASSIGN COMPONENT ms_alv_components-fcat OF STRUCTURE <ls_alv> TO FIELD-SYMBOL(<lt_fcat>).
-        IF <lt_fcat> IS ASSIGNED.
-          CLEAR : <lt_fcat>.
-          <lt_fcat> = fill_main_fieldcat( iv_scrn = iv_scrn_alv ).
-        ENDIF.
-
-        "LAYOUT
-        ASSIGN COMPONENT ms_alv_components-layo OF STRUCTURE <ls_alv> TO FIELD-SYMBOL(<ls_layo>).
-        IF <ls_layo> IS ASSIGNED.
-          CLEAR : <ls_layo>.
-          <ls_layo> = build_layo( iv_scrn = iv_scrn_alv ).
-        ENDIF.
-
-        "VARIANT
-        ASSIGN COMPONENT ms_alv_components-vari OF STRUCTURE <ls_alv> TO FIELD-SYMBOL(<ls_vari>).
-        IF <ls_vari> IS ASSIGNED.
-          CLEAR : <ls_vari>.
-          <ls_vari> = build_vari( iv_scrn = iv_scrn_alv ).
-        ENDIF.
-
-        "SORT
-        ASSIGN COMPONENT ms_alv_components-sort OF STRUCTURE <ls_alv> TO FIELD-SYMBOL(<lt_sort>).
-        IF <lt_sort> IS ASSIGNED.
-          CLEAR : <lt_sort>.
-          <lt_sort> = fill_main_sort( iv_scrn = iv_scrn_alv ).
-        ENDIF.
-
-        CHECK sy-subrc IS INITIAL.
-
-        "ALV
-        ASSIGN COMPONENT ms_alv_components-itab OF STRUCTURE <ls_alv> TO FIELD-SYMBOL(<lt_itab>).
-        IF <lt_itab> IS ASSIGNED.
-
-          CASE iv_scrn_alv.
-            WHEN ms_scr-s0101.
-              ASSIGN mt_teklf_list TO <lt_itab>.
-            WHEN ms_scr-s0201.
-                case sy-ucomm.
-                  when '&MLZM'.
-                     ASSIGN mt_popup_alv_malz TO <lt_itab>.
-                  when '&TLP'.
-                     ASSIGN mt_popup_alv_banfn to <lt_itab>.
-                  when '&TKLF'.
-                     ASSIGN mt_popup_alv_ebeln to <lt_itab>.
-                endcase.
-              SET HANDLER on_hotspot FOR ms_alv-s0201-grid.
-          ENDCASE.
-
-          CALL METHOD <lo_grid>->set_table_for_first_display
-            EXPORTING
-              i_buffer_active               = abap_true
-              is_layout                     = <ls_layo>
-              i_save                        = 'A'
-              it_toolbar_excluding          = lt_exclude
-            CHANGING
-              it_outtab                     = <lt_itab>
-              it_fieldcatalog               = <lt_fcat>
-              it_sort                       = <lt_sort>
-            EXCEPTIONS
-              invalid_parameter_combination = 1
-              program_error                 = 2
-              too_many_lines                = 3
-              OTHERS                        = 4.
-
-          IF sy-subrc <> 0.
-            MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
-              WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+          "FCAT
+          ASSIGN COMPONENT ms_alv_components-fcat OF STRUCTURE <ls_alv> TO FIELD-SYMBOL(<lt_fcat>).
+          IF <lt_fcat> IS ASSIGNED.
+            CLEAR : <lt_fcat>.
+            <lt_fcat> = fill_main_fieldcat( iv_scrn = iv_scrn_alv ).
           ENDIF.
-          <lo_grid>->set_ready_for_input( i_ready_for_input = 1 ).
-          <lo_grid>->register_edit_event( EXPORTING i_event_id = cl_gui_alv_grid=>mc_evt_modified ).
-          <lo_grid>->register_edit_event( EXPORTING i_event_id = cl_gui_alv_grid=>mc_evt_enter  ).
-        ENDIF.
+
+          "LAYOUT
+          ASSIGN COMPONENT ms_alv_components-layo OF STRUCTURE <ls_alv> TO FIELD-SYMBOL(<ls_layo>).
+          IF <ls_layo> IS ASSIGNED.
+            CLEAR : <ls_layo>.
+            <ls_layo> = build_layo( iv_scrn = iv_scrn_alv ).
+          ENDIF.
+
+          "VARIANT
+          ASSIGN COMPONENT ms_alv_components-vari OF STRUCTURE <ls_alv> TO FIELD-SYMBOL(<ls_vari>).
+          IF <ls_vari> IS ASSIGNED.
+            CLEAR : <ls_vari>.
+            <ls_vari> = build_vari( iv_scrn = iv_scrn_alv ).
+          ENDIF.
+
+          "SORT
+          ASSIGN COMPONENT ms_alv_components-sort OF STRUCTURE <ls_alv> TO FIELD-SYMBOL(<lt_sort>).
+          IF <lt_sort> IS ASSIGNED.
+            CLEAR : <lt_sort>.
+            <lt_sort> = fill_main_sort( iv_scrn = iv_scrn_alv ).
+          ENDIF.
+
+          CHECK sy-subrc IS INITIAL.
+
+          "ALV
+          ASSIGN COMPONENT ms_alv_components-itab OF STRUCTURE <ls_alv> TO FIELD-SYMBOL(<lt_itab>).
+          IF <lt_itab> IS ASSIGNED.
+
+            CASE iv_scrn_alv.
+              WHEN ms_scr-s0101.
+                ASSIGN mt_teklf_list TO <lt_itab>.
+              WHEN ms_scr-s0201.
+*              CASE sy-ucomm.
+*                WHEN '&MLZM'.
+                ASSIGN mt_popup_alv_malz TO <lt_itab>.
+                SET HANDLER on_hotspot FOR ms_alv-s0201-grid.
+              WHEN ms_scr-s0301.
+*                WHEN '&TLP'.
+                ASSIGN mt_popup_alv_banfn TO <lt_itab>.
+                SET HANDLER on_hotspot FOR ms_alv-s0301-grid.
+              WHEN ms_scr-s0401.
+*                WHEN '&TKLF'.
+                ASSIGN mt_popup_alv_ebeln TO <lt_itab>.
+                SET HANDLER on_hotspot FOR ms_alv-s0401-grid.
+*              ENDCASE.
+            ENDCASE.
+
+            CALL METHOD <lo_grid>->set_table_for_first_display
+              EXPORTING
+                i_buffer_active               = abap_true
+                is_layout                     = <ls_layo>
+                i_save                        = 'A'
+                it_toolbar_excluding          = lt_exclude
+              CHANGING
+                it_outtab                     = <lt_itab>
+                it_fieldcatalog               = <lt_fcat>
+                it_sort                       = <lt_sort>
+              EXCEPTIONS
+                invalid_parameter_combination = 1
+                program_error                 = 2
+                too_many_lines                = 3
+                OTHERS                        = 4.
+
+            IF sy-subrc <> 0.
+              MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+            ENDIF.
+*ELSE.
+*      refresh_alv( io_grid = <lo_grid> ).
+    ENDIF.
+            <lo_grid>->set_ready_for_input( i_ready_for_input = 1 ).
+            <lo_grid>->register_edit_event( EXPORTING i_event_id = cl_gui_alv_grid=>mc_evt_modified ).
+            <lo_grid>->register_edit_event( EXPORTING i_event_id = cl_gui_alv_grid=>mc_evt_enter  ).
+          ENDIF.
+*        ENDIF.
       ENDIF.
     ENDIF.
   ENDMETHOD.
@@ -414,10 +441,10 @@ METHOD display_attachment.
     rs_layo-zebra      = abap_true.
     rs_layo-sel_mode   = 'A'.
     rs_layo-col_opt    = abap_true.
-    rs_layo-CWIDTH_OPT = abap_true.
+    rs_layo-cwidth_opt = abap_true.
 
     CASE iv_scrn.
-      WHEN ms_scr-s0201.
+      WHEN ms_scr-s0201 OR ms_scr-s0301 OR ms_scr-s0401.
         rs_layo-no_rowmark = abap_true.
     ENDCASE.
 
@@ -433,7 +460,7 @@ METHOD display_attachment.
     CASE iv_scrn.
       WHEN ms_scr-s0101.
         lv_structure = gt_structure1.
-      WHEN ms_scr-s0201.
+      WHEN ms_scr-s0201 OR ms_scr-s0301 OR ms_scr-s0401.
         lv_structure = gt_structure2.
     ENDCASE.
 
@@ -456,51 +483,51 @@ METHOD display_attachment.
       WHEN ms_scr-s0101.
         LOOP AT rt_fcat REFERENCE INTO DATA(lr_fcat).
           CASE lr_fcat->fieldname.
-             WHEN 'TKLF_TALEP_GRNO'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'STNALMA_TLPNO'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'STALM_TLP_KLMNO'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'STNALM_BLG_NO'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'SATALM_BLGKLM_NO'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'AEDAT'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'SATICI_HSP_NO'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'SATICI_AD'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'STNALM_MALZ'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'STNALM_TXT'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'STNALM_MIKTAR'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'STNALMA_OLCUM'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'TEKLF_VRME_SR'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'KLM_TESLM_TARIH'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'STNALM_COMP'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'STNALM_COMP_AD'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'STNALM_URTM'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'STNALM_URTM_AD'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'STNALM_GR'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'IHTYC_NO'.
-               lr_fcat->col_opt = abap_true.
-             WHEN 'ODEME_KOSUL'.
-               lr_fcat->col_opt = abap_true.
-             ENDCASE.
-          ENDLOOP.
-      WHEN ms_scr-s0201.
+            WHEN 'TKLF_TALEP_GRNO'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'STNALMA_TLPNO'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'STALM_TLP_KLMNO'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'STNALM_BLG_NO'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'SATALM_BLGKLM_NO'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'AEDAT'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'SATICI_HSP_NO'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'SATICI_AD'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'STNALM_MALZ'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'STNALM_TXT'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'STNALM_MIKTAR'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'STNALMA_OLCUM'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'TEKLF_VRME_SR'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'KLM_TESLM_TARIH'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'STNALM_COMP'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'STNALM_COMP_AD'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'STNALM_URTM'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'STNALM_URTM_AD'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'STNALM_GR'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'IHTYC_NO'.
+              lr_fcat->col_opt = abap_true.
+            WHEN 'ODEME_KOSUL'.
+              lr_fcat->col_opt = abap_true.
+          ENDCASE.
+        ENDLOOP.
+      WHEN ms_scr-s0201 OR ms_scr-s0301 OR ms_scr-s0401.
         LOOP AT rt_fcat REFERENCE INTO lr_fcat.
           CASE lr_fcat->fieldname.
             WHEN 'ICON'.
@@ -537,21 +564,24 @@ METHOD display_attachment.
 
     CASE iv_scrn.
       WHEN ms_scr-s0200.
-        CASE sy-ucomm.
-          WHEN ms_ucomm-ok200.
-            case gv_marker.
-              when 'M'.
-                maok( ).
-              when 'T'.
-                taok( ).
-              when 'E'.
-                teok( ).
-            endcase.
-            ext( iv_scrn = sy-dynnr ).
-          WHEN OTHERS.
-            ext( iv_scrn = sy-dynnr ).
-        ENDCASE.
+        IF sy-ucomm = ms_ucomm-ok200.
+          maok( ).
+          ext( iv_scrn = sy-dynnr ).
+        ENDIF.
+      WHEN ms_scr-s0300.
+        IF sy-ucomm = ms_ucomm-ok300.
+          taok( ).
+          ext( iv_scrn = sy-dynnr ).
+        ENDIF.
+      WHEN ms_scr-s0400.
+        IF sy-ucomm = ms_ucomm-ok400.
+          teok( ).
+          ext( iv_scrn = sy-dynnr ).
+        ENDIF.
+*      WHEN OTHERS.
+*        ext( iv_scrn = sy-dynnr ).
     ENDCASE.
+
 
     ms_alv-s0101-grid->get_selected_rows(
    IMPORTING
@@ -597,26 +627,49 @@ METHOD display_attachment.
     CASE iv_scrn.
       WHEN ms_scr-s0100.
         IF ms_alv-s0100-cont IS NOT BOUND.
-
           " Build Container
           ms_alv-s0100-cont = build_cont( iv_alv_name = |{ 'F_' }{ iv_scrn }| ).
           main_alv( iv_scrn_cont = iv_scrn  iv_scrn_alv = ms_scr-s0101 ).
         ENDIF.
       WHEN ms_scr-s0200.
-
         IF ms_alv-s0200-cont IS NOT BOUND.
-          " Build Container
           ms_alv-s0200-cont = build_cont( iv_alv_name = |{ 'F_' }{ iv_scrn }| ). "Taking container into a bound countrol is extremely crutual in terms of avoiding blank screens.
-          ENDIF.
           main_alv( iv_scrn_cont = iv_scrn  iv_scrn_alv = ms_scr-s0201 ).
+        ELSE.
+          refresh_alv( io_grid = ms_alv-s0201-grid ).
+        ENDIF.
+      WHEN ms_scr-s0300.
+        IF ms_alv-s0300-cont IS NOT BOUND.
+          ms_alv-s0300-cont = build_cont( iv_alv_name = |{ 'F_' }{ iv_scrn }| ).
+          main_alv( iv_scrn_cont = iv_scrn  iv_scrn_alv = ms_scr-s0301 ).
+          ELSE.
+            refresh_alv( io_grid = ms_alv-s0301-grid ).
+        ENDIF.
+      WHEN ms_scr-s0400.
+        IF ms_alv-s0400-cont IS NOT BOUND.
+          ms_alv-s0400-cont = build_cont( iv_alv_name = |{ 'F_' }{ iv_scrn }| ).
+          main_alv( iv_scrn_cont = iv_scrn  iv_scrn_alv = ms_scr-s0401 ).
+          ELSE.
+            refresh_alv( io_grid = ms_alv-s0401-grid ).
+        ENDIF.
     ENDCASE.
   ENDMETHOD.
   METHOD ext.
     CASE sy-ucomm.
       WHEN ms_ucomm-cancel200.
-        ms_alv-s0201-grid->free( ).
+*        ms_alv-s0201-grid->free( ).
         cl_gui_cfw=>flush( ).
-        FREE: ms_alv-s0201-grid.
+*        FREE: ms_alv-s0201-grid.
+        LEAVE TO SCREEN 0.
+      WHEN ms_ucomm-cancel300.
+*        ms_alv-s0301-grid->free( ).
+        cl_gui_cfw=>flush( ).
+*        FREE: ms_alv-s0301-grid.
+        LEAVE TO SCREEN 0.
+      WHEN ms_ucomm-cancel400.
+*        ms_alv-s0401-grid->free( ).
+        cl_gui_cfw=>flush( ).
+*        FREE: ms_alv-s0401-grid.
         LEAVE TO SCREEN 0.
       WHEN ms_ucomm-back.
         LEAVE TO SCREEN 0.
@@ -625,10 +678,23 @@ METHOD display_attachment.
       WHEN ms_ucomm-exit.
         LEAVE TO SCREEN 0.
       WHEN OTHERS.
-        ms_alv-s0201-grid->free( ).
-        cl_gui_cfw=>flush( ).
-        FREE: ms_alv-s0201-grid.
-        LEAVE TO SCREEN 0.
+        CASE gv_marker.
+          WHEN 'M'.
+*            ms_alv-s0201-grid->free( ).
+            cl_gui_cfw=>flush( ).
+*            FREE: ms_alv-s0201-grid.
+            LEAVE TO SCREEN 0.
+          WHEN 'T'.
+*            ms_alv-s0301-grid->free( ).
+            cl_gui_cfw=>flush( ).
+*            FREE: ms_alv-s0301-grid.
+            LEAVE TO SCREEN 0.
+          WHEN 'E'.
+*            ms_alv-s0401-grid->free( ).
+            cl_gui_cfw=>flush( ).
+*            FREE: ms_alv-s0401-grid.
+            LEAVE TO SCREEN 0.
+        ENDCASE.
     ENDCASE.
   ENDMETHOD.
   METHOD read_document_data.
@@ -640,7 +706,7 @@ METHOD display_attachment.
          lv_counter     TYPE int4.
 
     CLEAR: et_popup_alv[], mt_instid_b[].
-" fetching the attachment id
+    " fetching the attachment id
     SELECT
       FROM
       srgbtbrel
@@ -655,7 +721,7 @@ METHOD display_attachment.
       LOOP AT mt_instid_b ASSIGNING FIELD-SYMBOL(<fs_docid>).
 
         lv_docid = CONV #( <fs_docid>-instid_b ).
-"       get all the details for an attachment
+        "       get all the details for an attachment
         CALL FUNCTION 'SO_DOCUMENT_READ_API1'
           EXPORTING
             document_id                = lv_docid
@@ -699,7 +765,7 @@ METHOD display_attachment.
           lo_cols   TYPE REF TO cl_salv_columns,
           lo_column TYPE REF TO cl_salv_column_list.
 
-gv_marker = 'M'.
+    gv_marker = 'M'.
 
     IF mt_teklf_list[] IS NOT INITIAL.
       DATA(lt_matnr) = VALUE rsdsselopt_t( FOR ls_list_ IN mt_teklf_list ( sign = 'I'
@@ -709,26 +775,26 @@ gv_marker = 'M'.
       DELETE ADJACENT DUPLICATES FROM lt_matnr.
     ENDIF.
     DATA(lv_typeid) = CONV sibftypeid( 'BUS1001006' ).
-" read attached documents and get the details
+    " read attached documents and get the details
     TRY.
-    read_document_data(
-      EXPORTING
-        iv_typeida   =  lv_typeid
-        it_doc       =  lt_matnr
-       IMPORTING
-         et_popup_alv = mt_popup_alv_malz
-           ).
-"  ALV creation for Malzeme Ekleme Listesi
+        read_document_data(
+          EXPORTING
+            iv_typeida   =  lv_typeid
+            it_doc       =  lt_matnr
+           IMPORTING
+             et_popup_alv = mt_popup_alv_malz
+               ).
+        "  ALV creation for Malzeme Ekleme Listesi
+*refresh_alv( io_grid = ms_alv-s0201-grid ).
+        CALL SCREEN 0200 STARTING AT 10 10.
 
-    CALL SCREEN 0200 STARTING AT 10 10.
-
-       SORT mt_all_rows BY button_type row_no.
+        SORT mt_all_rows BY button_type row_no.
         DELETE ADJACENT DUPLICATES FROM mt_all_rows COMPARING button_type row_no.
         LOOP AT mt_all_rows ASSIGNING FIELD-SYMBOL(<ls_all_rows>) WHERE button_type = 'MA'.
           APPEND INITIAL LINE TO lt_rows REFERENCE INTO DATA(lo_rows).
           lo_rows->* = <ls_all_rows>-row_no.
         ENDLOOP.
-"        mo_alv_malz->get_selections( )->set_selected_rows( lt_rows ).
+        "        mo_alv_malz->get_selections( )->set_selected_rows( lt_rows ).
 
       CATCH cx_salv_msg INTO DATA(lo_salv_msg).
         RAISE EXCEPTION NEW lcx_exceptions( iv_message = |{ lo_salv_msg->get_text( ) }|
@@ -743,7 +809,7 @@ gv_marker = 'M'.
   ENDMETHOD.
   METHOD maok."on_data_changed.
     DELETE mt_all_rows WHERE button_type = 'MA'.
-     LOOP AT mt_popup_alv_malz REFERENCE INTO DATA(lr_popup_alv_malz) WHERE checkbox = 'X'.
+    LOOP AT mt_popup_alv_malz REFERENCE INTO DATA(lr_popup_alv_malz) WHERE checkbox = 'X'.
       DATA(ls_row_data) = mt_popup_alv_malz[ lr_popup_alv_malz->row_id ].
       APPEND VALUE #( button_type = 'MA'
                       row_no = lr_popup_alv_malz->row_id
@@ -753,11 +819,11 @@ gv_marker = 'M'.
                       doc_size = ls_row_data-doc_size
                       content  = ls_row_data-content
                       content_hex = ls_row_data-content_hex ) TO mt_all_rows.
-ENDLOOP.
+    ENDLOOP.
   ENDMETHOD.
-    METHOD taok.
+  METHOD taok.
     DELETE mt_all_rows WHERE button_type = 'TP'.
-     LOOP AT mt_popup_alv_banfn REFERENCE INTO DATA(lr_popup_alv_banfn) WHERE checkbox = 'X'.
+    LOOP AT mt_popup_alv_banfn REFERENCE INTO DATA(lr_popup_alv_banfn) WHERE checkbox = 'X'.
       DATA(ls_row_data) = mt_popup_alv_banfn[ lr_popup_alv_banfn->row_id ].
       APPEND VALUE #( button_type = 'TP'
                       row_no = lr_popup_alv_banfn->row_id
@@ -767,11 +833,11 @@ ENDLOOP.
                       doc_size = ls_row_data-doc_size
                       content  = ls_row_data-content
                       content_hex = ls_row_data-content_hex ) TO mt_all_rows.
-ENDLOOP.
+    ENDLOOP.
   ENDMETHOD.
-   METHOD teok.
+  METHOD teok.
     DELETE mt_all_rows WHERE button_type = 'TF'.
-     LOOP AT mt_popup_alv_ebeln REFERENCE INTO DATA(lr_popup_alv_ebeln) WHERE checkbox = 'X'.
+    LOOP AT mt_popup_alv_ebeln REFERENCE INTO DATA(lr_popup_alv_ebeln) WHERE checkbox = 'X'.
       DATA(ls_row_data) = mt_popup_alv_ebeln[ lr_popup_alv_ebeln->row_id ].
       APPEND VALUE #( button_type = 'TF'
                       row_no = lr_popup_alv_ebeln->row_id
@@ -781,7 +847,7 @@ ENDLOOP.
                       doc_size = ls_row_data-doc_size
                       content  = ls_row_data-content
                       content_hex = ls_row_data-content_hex ) TO mt_all_rows.
-ENDLOOP.
+    ENDLOOP.
   ENDMETHOD.
   METHOD display_log.
     IF sy-batch = abap_false.
@@ -870,7 +936,7 @@ ENDLOOP.
                 i_text       = lt_body ).
             lo_bcs = cl_bcs=>create_persistent( ).
 
-" Add receivers
+            " Add receivers
             READ TABLE lt_receiver_mail ASSIGNING FIELD-SYMBOL(<fs_receiver>) WITH KEY ebeln = <fs_ebeln>-ebeln.
             IF sy-subrc EQ 0.
               APPEND INITIAL LINE TO lt_receiver REFERENCE INTO DATA(lr_rec).
@@ -886,7 +952,7 @@ ENDLOOP.
                   i_copy       = ls_receivers-copy
                   i_blind_copy = ls_receivers-blind_copy.
             ENDLOOP.
-"   Add sender email
+            "   Add sender email
             READ TABLE lt_sender_email ASSIGNING FIELD-SYMBOL(<fs_sender>) WITH KEY ebeln = <fs_ebeln>-ebeln.
             IF sy-subrc EQ 0.
               DATA(lv_sender) = <fs_sender>-smtp_addr.
@@ -895,7 +961,7 @@ ENDLOOP.
             CALL METHOD lo_bcs->set_sender
               EXPORTING
                 i_sender = lo_sender.
-" Add file attachments
+            " Add file attachments
             IF mt_all_rows[] IS NOT INITIAL.
               LOOP AT mt_all_rows ASSIGNING FIELD-SYMBOL(<fs_attachment>).
                 lo_document->add_attachment(
@@ -906,7 +972,7 @@ ENDLOOP.
               ENDLOOP.
             ENDIF.
 
-" Add smartform attachments
+            " Add smartform attachments
             CALL FUNCTION 'ZMM033_FM_TEKLIF_TALEP_PDF'
               EXPORTING
                 iv_ebeln      = CONV ebeln( <fs_ebeln>-ebeln )
@@ -964,10 +1030,10 @@ ENDLOOP.
       EXPORTING
         iv_ebeln = ls_alv_data-stnalm_blg_no.
   ENDMETHOD.
- METHOD display_purch_req_list.
+  METHOD display_purch_req_list.
     DATA: lt_rows TYPE salv_t_row.
 
-gv_marker = 'T'.
+    gv_marker = 'T'.
 
     IF mt_teklf_list[] IS NOT INITIAL.
       DATA(lt_banfn) = VALUE rsdsselopt_t( FOR ls_list_ IN mt_teklf_list ( sign = 'I'
@@ -977,7 +1043,7 @@ gv_marker = 'T'.
       DELETE ADJACENT DUPLICATES FROM lt_banfn.
     ENDIF.
     DATA(lv_typeid_ban) = CONV sibftypeid( 'BUS2105' ).
-" read attached documents and get the details
+    " read attached documents and get the details
     TRY.
         read_document_data(
           EXPORTING
@@ -986,10 +1052,10 @@ gv_marker = 'T'.
            IMPORTING
              et_popup_alv = mt_popup_alv_banfn
                ).
-"  ALV creation for Talep Ekleme Listesi
+        "  ALV creation for Talep Ekleme Listesi
 
-call screen 0200 STARTING AT 10 10.
-"     Set header
+        CALL SCREEN 0300 STARTING AT 10 10.
+        "     Set header
 
         SORT mt_all_rows BY button_type row_no.
         DELETE ADJACENT DUPLICATES FROM mt_all_rows COMPARING button_type row_no.
@@ -1009,9 +1075,9 @@ call screen 0200 STARTING AT 10 10.
     ENDTRY.
   ENDMETHOD.
   METHOD display_purch_doc_list.
-   DATA: lt_rows  TYPE salv_t_row.
+    DATA: lt_rows  TYPE salv_t_row.
 
-gv_marker = 'E'.
+    gv_marker = 'E'.
 
     IF mt_ebeln[] IS NOT INITIAL.
       DATA(lt_ebeln_popup) = VALUE rsdsselopt_t( FOR ls_list_ IN mt_ebeln ( sign = 'I'
@@ -1020,7 +1086,7 @@ gv_marker = 'E'.
     ENDIF.
 
     DATA(lv_typeid_eb) = CONV sibftypeid( 'BUS2010' ).
-" read attached documents and get the details
+    " read attached documents and get the details
     TRY.
         read_document_data(
           EXPORTING
@@ -1029,9 +1095,9 @@ gv_marker = 'E'.
            IMPORTING
              et_popup_alv = mt_popup_alv_ebeln
                ).
-"  ALV creation for Teklif Ekleme Listesi
-call screen 0200 STARTING AT 10 10.
-"     Set header
+        "  ALV creation for Teklif Ekleme Listesi
+        CALL SCREEN 0400 STARTING AT 10 10.
+        "     Set header
 
         SORT mt_all_rows BY button_type row_no.
         DELETE ADJACENT DUPLICATES FROM mt_all_rows COMPARING button_type row_no.
@@ -1051,17 +1117,32 @@ call screen 0200 STARTING AT 10 10.
     ENDTRY.
   ENDMETHOD.
   METHOD on_hotspot.
-     e_column_id = 'ICON'.
-case gv_marker.
-  when 'M'.
-    DATA(ls_malz) = mt_popup_alv_malz[ es_row_no-row_id ].
-    display_attachment( is_data = ls_malz ).
-  when 'T'.
-    ls_malz = mt_popup_alv_banfn[ es_row_no-row_id ].
-    display_attachment( is_data = ls_malz ).
-  when 'E'.
-    ls_malz = mt_popup_alv_ebeln[ es_row_no-row_id ].
-    display_attachment( is_data = ls_malz ).
-endcase.
+    e_column_id = 'ICON'.
+    CASE gv_marker.
+      WHEN 'M'.
+        DATA(ls_malz) = mt_popup_alv_malz[ es_row_no-row_id ].
+        display_attachment( is_data = ls_malz ).
+      WHEN 'T'.
+        ls_malz = mt_popup_alv_banfn[ es_row_no-row_id ].
+        display_attachment( is_data = ls_malz ).
+      WHEN 'E'.
+        ls_malz = mt_popup_alv_ebeln[ es_row_no-row_id ].
+        display_attachment( is_data = ls_malz ).
+    ENDCASE.
+  ENDMETHOD.
+  METHOD refresh_alv.
+    io_grid->set_frontend_layout( VALUE #( zebra      = abap_true
+                                           cwidth_opt = abap_true
+                                           sel_mode   = 'A'
+                                        ) ).
+
+    io_grid->refresh_table_display(
+          EXPORTING
+            is_stable      = VALUE #( row = abap_true col = abap_true )
+            i_soft_refresh = abap_true
+          EXCEPTIONS
+            finished       = 1
+            OTHERS         = 2
+        ).
   ENDMETHOD.
 ENDCLASS.
