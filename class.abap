@@ -193,7 +193,7 @@ CLASS lcl_main_controller IMPLEMENTATION.
     ENDIF.
   ENDMETHOD.
   METHOD get_data.
-*validate_ss( ).
+*validate_ss( ). "If you would like to switch authoriazation check on, this should be uncommented.
     SELECT
       FROM ekko AS ek
       INNER JOIN ekpo AS ep ON ek~ebeln = ep~ebeln
