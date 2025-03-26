@@ -13,6 +13,9 @@ INCLUDE zmm034_i_af_gonderme_mdl.
 
 INITIALIZATION.
  mo_log = NEW #( ). "to initialize mo_log.
+*lcl_main_controller=>set_repid( ).
+*lcl_main_controller=>constructor( ).
+* lcl_main_controller=>validate_ss( ).
 
 START-OF-SELECTION.
 lcl_main_controller=>get_data( ).
