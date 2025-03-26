@@ -14,6 +14,10 @@ CONSTANTS:
               s0101 TYPE sy-dynnr VALUE '0101',
               s0200 type sy-dynnr value '0200',
               s0201 type sy-dynnr value '0201',
+              s0300 type sy-dynnr value '0300',
+              s0301 type sy-dynnr value '0301',
+              s0400 type sy-dynnr value '0400',
+              s0401 type sy-dynnr value '0401',
            END OF ms_scr,
            BEGIN OF ms_ucomm,
               back   TYPE sy-ucomm VALUE 'EX001',
@@ -21,6 +25,10 @@ CONSTANTS:
               exit   TYPE sy-ucomm VALUE 'EX003',
               cancel200 type sy-ucomm value 'CANCEL200',
               OK200 type sy-ucomm value 'OK200',
+              cancel300 type sy-ucomm value 'CANCEL300',
+              OK300 type sy-ucomm value 'OK300',
+              cancel400 type sy-ucomm value 'CANCEL400',
+              OK400 type sy-ucomm value 'OK400',
            END OF ms_ucomm,
 
            BEGIN OF ms_alv_components,
@@ -100,7 +108,3 @@ types: begin of ty_row,
            mtt_select_data TYPE STANDARD TABLE OF mty_select_data.
 
             DATA: mo_log      TYPE REF TO cl_ptu_message.
-*          mo_alv      TYPE REF TO cl_salv_table.
-*          mo_alv_malz TYPE REF TO cl_salv_table.
-*          mo_alv_tlp  TYPE REF TO cl_salv_table.
-*          mo_alv_tklf TYPE REF TO cl_salv_table.
